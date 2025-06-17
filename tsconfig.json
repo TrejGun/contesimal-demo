@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/client"
+    },
+    {
+      "path": "./apps/server"
+    }
+  ]
+}
