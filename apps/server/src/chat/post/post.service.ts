@@ -21,7 +21,8 @@ export class PostService {
   public getStateGraph() {
     const workflow = new StateGraph(stateSchema)
       .addNode('classifySocial', this.extractPostData.bind(this))
-      .addNode('requestData', this.requestMissingSocialData.bind(this))
+      .addNode('requestNetwork', this.requestNetwork.bind(this))
+      .addNode('requestContent', this.requestContent.bind(this))
       .addNode('postAgent', this.postAgent.bind(this))
       .addConditionalEdges('classifySocial', this.checkSocialData.bind(this))
       .addEdge(START, 'classifySocial')
@@ -33,7 +34,6 @@ export class PostService {
   public async extractPostData(state: StateType, config?: RunnableConfig) {
     this.loggerService.log('chat', state);
     const { input, social } = state;
-    console.log('extractPostData', { input, social });
     const supporterNetworks = Object.values(NetworkEnum);
     const messages = [
       {
@@ -73,21 +73,24 @@ Respond ONLY with a JSON object in the following format:
     };
   }
 
-  public async requestMissingSocialData(
-    state: StateType,
-    config: RunnableConfig,
-  ) {
+  public async requestNetwork(state: StateType, config: RunnableConfig) {
     this.loggerService.log('requestMissingSocialData', state);
-    const { social: { network = '', content = '' } = {} } = state;
-    let prompt = '';
-    if (!network) {
-      const supporterNetworks = Object.values(NetworkEnum);
-      prompt = `Ask the user which of the social networks (${supporterNetworks.join(', ')}) he wants to use`;
-    }
-    if (!content) {
-      prompt = `Double check with user which content he wants to share`;
-    }
-    const stream = await this.model.stream(prompt, config);
+    const supporterNetworks = Object.values(NetworkEnum);
+    const stream = await this.model.stream(
+      `Ask the user which of the social networks (${supporterNetworks.join(', ')}) he wants to use`,
+      config,
+    );
+    return {
+      output: stream,
+    };
+  }
+
+  public async requestContent(state: StateType, config: RunnableConfig) {
+    this.loggerService.log('requestMissingSocialData', state);
+    const stream = await this.model.stream(
+      `Double check with user which content he wants to share`,
+      config,
+    );
     return {
       output: stream,
     };
@@ -108,9 +111,12 @@ Respond ONLY with a JSON object in the following format:
   public async checkSocialData(state: StateType) {
     this.loggerService.log('checkSocialData', state);
     const { social: { network = '', content = '' } = {} } = state;
-    if (network && content) {
-      return 'postAgent';
+    if (!network) {
+      return 'requestNetwork';
     }
-    return 'requestData';
+    if (!content) {
+      return 'requestContent';
+    }
+    return 'postAgent';
   }
 }
